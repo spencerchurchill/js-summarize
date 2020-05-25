@@ -1,5 +1,4 @@
-function JsSummarize(options)
-{
+function JsSummarize(options) {
     'use strict';
 
     /** @type {Number} This is the ideal sentence length and will give weight to 
@@ -18,19 +17,19 @@ function JsSummarize(options)
 
     /** @type {Array} Sentence position value array. Used to score sentence position in text */
     this._positionValueArray = [
-        {low:0, high:0.1, score:0.17},
-        {low:0.1, high:0.2, score:0.23},
-        {low:0.2, high:0.3, score:0.14},
-        {low:0.3, high:0.4, score:0.08},
-        {low:0.4, high:0.5, score:0.05},
-        {low:0.5, high:0.6, score:0.04},
-        {low:0.6, high:0.7, score:0.06},
-        {low:0.7, high:0.8, score:0.04},
-        {low:0.8, high:0.9, score:0.04},
-        {low:0.9, high:1.0, score:0.15}
+        { low: 0, high: 0.1, score: 0.17 },
+        { low: 0.1, high: 0.2, score: 0.23 },
+        { low: 0.2, high: 0.3, score: 0.14 },
+        { low: 0.3, high: 0.4, score: 0.08 },
+        { low: 0.4, high: 0.5, score: 0.05 },
+        { low: 0.5, high: 0.6, score: 0.04 },
+        { low: 0.6, high: 0.7, score: 0.06 },
+        { low: 0.7, high: 0.8, score: 0.04 },
+        { low: 0.8, high: 0.9, score: 0.04 },
+        { low: 0.9, high: 1.0, score: 0.15 }
     ];
 
-    if(!options) return;
+    if (!options) return;
 
     this._idealSentenceLength = options.idealSentenceLength || this._idealSentenceLength;
     this._returnCount = options.returnCount || this._returnCount;
@@ -58,218 +57,209 @@ JsSummarize.prototype.summarize = function (title, text) {
 
     //Sort by score, select just the sentences, and return 5 (or whatever is set in options)
     var orderedList = _.chain(scoredSentences)
-                        .sortBy("score")
-                        .reverse()
-                        .pluck("sentence")
-                        .take(this._returnCount)
-                        .value();
+        .sortBy("score")
+        .reverse()
+        .pluck("sentence")
+        .take(this._returnCount)
+        .value();
 
     return orderedList;
 },
 
-/**
- * Handles the bulk of the operations. This will score sentences based on
- * shared keywords in the title, amount of high frequencey keywords, ideal length,
- * ideal position, sbs sentence algorithm,and the dbs sentence algorithm;
- * 
- * @param  {array} sentences  The array of sentences that make up the large text
- * @param  {array} titleWords The array of word tokens that make up the text title
- * @param  {array} keywords   The array of high frequency keywords in the text
- * @return {array}            The array of computed summary sentences.
- */
-JsSummarize.prototype.score = function (sentences, titleWords, keywords) {
+    /**
+     * Handles the bulk of the operations. This will score sentences based on
+     * shared keywords in the title, amount of high frequencey keywords, ideal length,
+     * ideal position, sbs sentence algorithm,and the dbs sentence algorithm;
+     * 
+     * @param  {array} sentences  The array of sentences that make up the large text
+     * @param  {array} titleWords The array of word tokens that make up the text title
+     * @param  {array} keywords   The array of high frequency keywords in the text
+     * @return {array}            The array of computed summary sentences.
+     */
+    JsSummarize.prototype.score = function (sentences, titleWords, keywords) {
 
-    var scoredSentences = [];
+        var scoredSentences = [];
 
-    for(var i = 0; i < sentences.length; i++)
-    {
-        //Split the sentence into words
-        var sentenceWords = this.splitWords(sentences[i]);
-        //Score based on shared title words
-        var titleFeature = this.titleScore(titleWords, sentenceWords);
-        //Score based on sentence length
-        var sentenceLength = this.lengthScore(sentenceWords);
-        //Score based on sentence position
-        var sentencePosition = this.sentencePosition(i+1, sentences.length);
-        //Score based on SBS
-        var sbsFeature = this.sbs(sentenceWords, keywords);
-        //Score based on DBS
-        var dbsFeature = this.dbs(sentenceWords, keywords);
-        //Calculate frequency
-        var frequency = (sbsFeature + dbsFeature) / 2.0 * 10.0;
+        for (var i = 0; i < sentences.length; i++) {
+            //Split the sentence into words
+            var sentenceWords = this.splitWords(sentences[i]);
+            //Score based on shared title words
+            var titleFeature = this.titleScore(titleWords, sentenceWords);
+            //Score based on sentence length
+            var sentenceLength = this.lengthScore(sentenceWords);
+            //Score based on sentence position
+            var sentencePosition = this.sentencePosition(i + 1, sentences.length);
+            //Score based on SBS
+            var sbsFeature = this.sbs(sentenceWords, keywords);
+            //Score based on DBS
+            var dbsFeature = this.dbs(sentenceWords, keywords);
+            //Calculate frequency
+            var frequency = (sbsFeature + dbsFeature) / 2.0 * 10.0;
 
-        //Weighted average of scores from four categores
-        var totalScore = (titleFeature*1.5 + frequency*2.0 + sentenceLength*1.0 + sentencePosition*1.0)/4.0;
+            //Weighted average of scores from four categores
+            var totalScore = (titleFeature * 1.5 + frequency * 2.0 + sentenceLength * 1.0 + sentencePosition * 1.0) / 4.0;
 
-        scoredSentences.push({sentence:sentences[i],score:totalScore});
-    }
-
-    return scoredSentences;
-},
-
-/**
- * Summation-based selection scoring
- * @param  {array} words    sentence to score
- * @param  {array} keywords list of keywords to score against
- * @return {number}          score
- */
-JsSummarize.prototype.sbs = function (words, keywords) {
-    if(words.length == 0) return 0;
-
-    var score = 0;
-    var contribution = 10;
-
-    for(var i = 0; i < words.length; i++)
-    {
-        var word = words[i];
-        var match = _.find(keywords,{"word":word});
-        if(match)
-        {
-            score += match.score;
+            scoredSentences.push({ sentence: sentences[i], score: totalScore });
         }
-    }
 
-    return (1.0 / words.length) * (score/contribution);
-},
+        return scoredSentences;
+    },
 
-/**
- * Density-based selection scoring
- * @param  {array} words    sentence to score
- * @param  {array} keywords list of keywords to score against
- * @return {number}          score
- */
-JsSummarize.prototype.dbs = function (words, keywords) {
-    if(words.length == 0) return 0;
-    
-    var total = 0;
-    var first = null;
-    var second = null;
-    var keywordsFound = 0;
+    /**
+     * Summation-based selection scoring
+     * @param  {array} words    sentence to score
+     * @param  {array} keywords list of keywords to score against
+     * @return {number}          score
+     */
+    JsSummarize.prototype.sbs = function (words, keywords) {
+        if (words.length == 0) return 0;
 
-    for(var i = 0; i < words.length; i++)
-    {
-        var word = words[i];
-        var match = _.find(keywords,{"word":word});
-        if(match)
-        {
-            keywordsFound++;
-            var score = match.score;
-            if(!first)
-            {
-                first = {index:i, score:score};
-            }
-            else{
-                second = first;
-                first = {index:i, score:score};
-                var dif = first.index - second.index;
-                total += (first.score*second.score) / (Math.pow(dif,2));
+        var score = 0;
+        var contribution = 10;
+
+        for (var i = 0; i < words.length; i++) {
+            var word = words[i];
+            var match = _.find(keywords, { "word": word });
+            if (match) {
+                score += match.score;
             }
         }
-    }
 
-    if(keywordsFound == 0) return 0;
-    return (1/(keywordsFound*(keywordsFound+1)))*total;
-},
+        return (1.0 / words.length) * (score / contribution);
+    },
 
-/**
- * Uses tokenizer to split text into word tokens
- * @param  {string} text text to split into tokens
- * @return {array}      An array of words
- */
-JsSummarize.prototype.splitWords = function (text) {
-    return this._tokenizer.tokenizeAggressive(text.toLowerCase());
-},
+    /**
+     * Density-based selection scoring
+     * @param  {array} words    sentence to score
+     * @param  {array} keywords list of keywords to score against
+     * @return {number}          score
+     */
+    JsSummarize.prototype.dbs = function (words, keywords) {
+        if (words.length == 0) return 0;
 
-/**
- * Builds up a list of high frequency words (keywords) used throughout
- * the text. Uses the exclusion list to remove words that do not help the
- * sentence score.
- * 
- * @param  {string} text Full text to parse
- * @return {array}      An array of high frequency keywords
- */
-JsSummarize.prototype.keywords = function (text) {
+        var total = 0;
+        var first = null;
+        var second = null;
+        var keywordsFound = 0;
 
-    var splitText = this.splitWords(text);
-
-    var words = _.chain(splitText)
-                .difference(this._excludeList)
-                .groupBy(function (word) {return word;})
-                .map(function(group){
-                    var frequency = group.length;
-                    var score = (frequency * 1.0 / splitText.length) * 1.5 + 1;
-                    return {word:group[0], score:score};
-                }).sortBy('score')
-                .reverse()
-                .take(10)
-                .value();
-
-    return words;
-},
-
-/**
- * Uses tokenizer to split text into sentences
- *     
- * @param  {string} text Full text to split into sentences
- * @return {array}      The array of sentences
- */ 
-JsSummarize.prototype.splitSentences = function (text) {
-    return this._tokenizer.getSentences(text);
-},
-
-/**
- * Scores a sentence based on the ideal length
- * @param  {array} sentence Sentence word array to score
- * @return {number}          Score based on sentence length
- */
-JsSummarize.prototype.lengthScore = function (sentence) {
-
-    return 1 - Math.abs(this._idealSentenceLength - sentence.length) / this._idealSentenceLength;
-},
-
-/**
- * Scores a sentence based on shared words with the title
- * 
- * @param  {string} title    Text Title
- * @param  {array} sentence Sentence word array to score
- * @return {number}          Score based on title
- */
-JsSummarize.prototype.titleScore = function (title, sentence) {
-
-    if(!title || !sentence) return 0;
-    //Remove any words shared with the exclusion list
-    var titleWords = _.difference(title, this._excludeList);
-    var count = 0;
-    for(var i = 0; i < sentence.length; i++)
-    {
-        var word = sentence[i];
-        if(!_.contains(this._excludeList, word) && _.contains(titleWords, word ))
-        {
-            count++;
+        for (var i = 0; i < words.length; i++) {
+            var word = words[i];
+            var match = _.find(keywords, { "word": word });
+            if (match) {
+                keywordsFound++;
+                var score = match.score;
+                if (!first) {
+                    first = { index: i, score: score };
+                }
+                else {
+                    second = first;
+                    first = { index: i, score: score };
+                    var dif = first.index - second.index;
+                    total += (first.score * second.score) / (Math.pow(dif, 2));
+                }
+            }
         }
+
+        if (keywordsFound == 0) return 0;
+        return (1 / (keywordsFound * (keywordsFound + 1))) * total;
+    },
+
+    /**
+     * Uses tokenizer to split text into word tokens
+     * @param  {string} text text to split into tokens
+     * @return {array}      An array of words
+     */
+    JsSummarize.prototype.splitWords = function (text) {
+        return this._tokenizer.tokenizeAggressive(text.toLowerCase());
+    },
+
+    /**
+     * Builds up a list of high frequency words (keywords) used throughout
+     * the text. Uses the exclusion list to remove words that do not help the
+     * sentence score.
+     * 
+     * @param  {string} text Full text to parse
+     * @return {array}      An array of high frequency keywords
+     */
+    JsSummarize.prototype.keywords = function (text) {
+
+        var splitText = this.splitWords(text);
+
+        var words = _.chain(splitText)
+            .difference(this._excludeList)
+            .groupBy(function (word) { return word; })
+            .map(function (group) {
+                var frequency = group.length;
+                var score = (frequency * 1.0 / splitText.length) * 1.5 + 1;
+                return { word: group[0], score: score };
+            }).sortBy('score')
+            .reverse()
+            .take(10)
+            .value();
+
+        return words;
+    },
+
+    /**
+     * Uses tokenizer to split text into sentences
+     *     
+     * @param  {string} text Full text to split into sentences
+     * @return {array}      The array of sentences
+     */
+    JsSummarize.prototype.splitSentences = function (text) {
+        return this._tokenizer.getSentences(text);
+    },
+
+    /**
+     * Scores a sentence based on the ideal length
+     * @param  {array} sentence Sentence word array to score
+     * @return {number}          Score based on sentence length
+     */
+    JsSummarize.prototype.lengthScore = function (sentence) {
+
+        return 1 - Math.abs(this._idealSentenceLength - sentence.length) / this._idealSentenceLength;
+    },
+
+    /**
+     * Scores a sentence based on shared words with the title
+     * 
+     * @param  {string} title    Text Title
+     * @param  {array} sentence Sentence word array to score
+     * @return {number}          Score based on title
+     */
+    JsSummarize.prototype.titleScore = function (title, sentence) {
+
+        if (!title || !sentence) return 0;
+        //Remove any words shared with the exclusion list
+        var titleWords = _.difference(title, this._excludeList);
+        var count = 0;
+        for (var i = 0; i < sentence.length; i++) {
+            var word = sentence[i];
+            if (!_.contains(this._excludeList, word) && _.contains(titleWords, word)) {
+                count++;
+            }
+        }
+
+        return count === 0 ? 0 : count / title.length;
+    },
+
+    /**
+     * Scores a sentence based on its location in the text. Different sentence
+     * positions indicate different probabilities of being an important sentence.
+     * 
+     * @param  {number} index    Sentence index in array of text sentences
+     * @param  {number} numberOfSentences The total number of sentences in the text
+     * @return {number}      Scored based on sentence position
+     */
+    JsSummarize.prototype.sentencePosition = function (index, numberOfSentences) {
+
+        var normalized = index * 1.0 / numberOfSentences;
+
+        for (var i = 0; i < this._positionValueArray.length; i++) {
+            var position = this._positionValueArray[i];
+            if (normalized > position.low && normalized <= position.high) return position.score;
+        }
+
+        return 0;
     }
-
-    return count === 0? 0 : count/title.length;
-},
-
-/**
- * Scores a sentence based on its location in the text. Different sentence
- * positions indicate different probabilities of being an important sentence.
- * 
- * @param  {number} index    Sentence index in array of text sentences
- * @param  {number} numberOfSentences The total number of sentences in the text
- * @return {number}      Scored based on sentence position
- */
-JsSummarize.prototype.sentencePosition = function (index, numberOfSentences) {
-
-    var normalized =  index*1.0 / numberOfSentences;
-
-    for(var i = 0; i < this._positionValueArray.length; i++)
-    {
-        var position = this._positionValueArray[i];
-        if(normalized > position.low && normalized <= position.high) return position.score;
-    }
-
-    return 0;
-} 
 
